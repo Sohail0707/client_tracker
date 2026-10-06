@@ -13,7 +13,7 @@ const activityRank = (c) => {
   return i === -1 ? ACTIVITY_LEVELS.length : i; // not set (or a legacy value) goes last
 };
 
-// Activity sorts high → low (not set last); status follows the pipeline, fresh → hired; text sorts A–Z.
+// Activity sorts high → low (not set last); status follows the pipeline, fresh → client; text sorts A–Z.
 export const SORTS = [
   { value: "newest", label: "Newest", compare: byNewest },
   { value: "oldest", label: "Oldest", compare: (a, b) => a.created_at - b.created_at },

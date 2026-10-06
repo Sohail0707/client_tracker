@@ -8,6 +8,9 @@
   --hired: #d8f5e0; --hired-t: #146c2e;
   --stale: #ffe5e3; --stale-t: #b3261e;
   --yellow: #fff4b8; --yellow-t: #6b5300; --yellow-dot: #e6b800;
+  --invited: #ece6ff; --invited-t: #5b3fb3;
+  --connected: #dcf3f0; --connected-t: #0f6b63;
+  --call: #ffe8d6; --call-t: #9a4a00;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -19,6 +22,9 @@
     --hired: #0d3a1c; --hired-t: #6fdc8c;
     --stale: #3d1412; --stale-t: #ff8a80;
     --yellow: #3a3200; --yellow-t: #ffe066; --yellow-dot: #ffd60a;
+    --invited: #2a2140; --invited-t: #c3b2ff;
+    --connected: #0f302d; --connected-t: #6fd8cc;
+    --call: #3d2410; --call-t: #ffb07a;
   }
 }
 * { box-sizing: border-box; }
@@ -95,9 +101,12 @@ select.status {
   font-size: 13px; font-weight: 500; cursor: pointer; outline: none; white-space: nowrap;
 }
 select.status[data-s="fresh"] { background: var(--fresh); color: var(--fresh-t); }
-select.status[data-s="message sent"] { background: var(--sent); color: var(--sent-t); }
-select.status[data-s="got reply"] { background: var(--reply); color: var(--reply-t); }
-select.status[data-s="hired"] { background: var(--hired); color: var(--hired-t); }
+select.status[data-s="invited"] { background: var(--invited); color: var(--invited-t); }
+select.status[data-s="connected"] { background: var(--connected); color: var(--connected-t); }
+select.status[data-s="messaged"] { background: var(--sent); color: var(--sent-t); }
+select.status[data-s="replied"] { background: var(--reply); color: var(--reply-t); }
+select.status[data-s="call"] { background: var(--call); color: var(--call-t); }
+select.status[data-s="client"] { background: var(--hired); color: var(--hired-t); }
 
 .status-cell { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 /* LinkedIn activity level: badge + one-click menu */

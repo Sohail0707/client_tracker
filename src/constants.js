@@ -1,4 +1,5 @@
-export const STATUSES = ["fresh", "message sent", "got reply", "hired"];
+// Outreach pipeline, in order.
+export const STATUSES = ["fresh", "invited", "connected", "messaged", "replied", "call", "client"];
 
 // LinkedIn activity tiers, set by eye from the client's Activity tab. ACTIVITY_REQUIREMENTS applies to every tier.
 export const ACTIVITY_LEVELS = [

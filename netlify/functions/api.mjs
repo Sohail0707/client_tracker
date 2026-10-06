@@ -3,7 +3,10 @@ import crypto from "node:crypto";
 
 export const config = { path: ["/api/*", "/auth/*"] };
 
-const STATUSES = ["fresh", "message sent", "got reply", "hired"];
+const STATUSES = ["fresh", "invited", "connected", "messaged", "replied", "call", "client"];
+// Statuses from the first version of the pipeline, mapped onto the current one.
+const LEGACY_STATUS = { "message sent": "messaged", "got reply": "replied", hired: "client" };
+const withStatus = (row) => (LEGACY_STATUS[row.status] ? { ...row, status: LEGACY_STATUS[row.status] } : row);
 const FIELDS = ["name", "profile", "email", "website", "industry", "status", "activity", "message", "remarks"];
 const ACTIVITY = ["", "high", "medium", "low"];
 const SESSION_COOKIE = "ct_session";
@@ -130,7 +133,7 @@ async function handleApi(req, parts, user) {
 
   if (!id && req.method === "GET") {
     const { blobs } = await store.list();
-    const rows = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean);
+    const rows = (await Promise.all(blobs.map((b) => store.get(b.key, { type: "json" })))).filter(Boolean).map(withStatus);
     rows.sort((a, b) => b.created_at - a.created_at);
     return json(rows);
   }
@@ -149,7 +152,7 @@ async function handleApi(req, parts, user) {
   if (id && req.method === "PATCH") {
     const current = await store.get(id, { type: "json" });
     if (!current) return json({ error: "Not found" }, 404);
-    const next = { ...current, ...clean(await req.json().catch(() => ({}))) };
+    const next = { ...withStatus(current), ...clean(await req.json().catch(() => ({}))) };
     await store.setJSON(id, next);
     const removed = (current.images || []).filter((i) => !(next.images || []).includes(i));
     await Promise.all(removed.map((i) => images.delete(i)));
