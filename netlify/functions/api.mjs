@@ -7,8 +7,9 @@ const STATUSES = ["fresh", "invited", "connected", "messaged", "replied", "call"
 // Statuses from the first version of the pipeline, mapped onto the current one.
 const LEGACY_STATUS = { "message sent": "messaged", "got reply": "replied", hired: "client" };
 const withStatus = (row) => (LEGACY_STATUS[row.status] ? { ...row, status: LEGACY_STATUS[row.status] } : row);
-const FIELDS = ["name", "profile", "email", "website", "industry", "status", "activity", "message", "remarks"];
+const FIELDS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks"];
 const ACTIVITY = ["", "high", "medium", "low"];
+const TYPES = ["", "agency", "personal"];
 const SESSION_COOKIE = "ct_session";
 const STATE_COOKIE = "ct_oauth_state";
 const SESSION_DAYS = 365;
@@ -118,6 +119,7 @@ function clean(body = {}) {
   for (const f of FIELDS) if (typeof body[f] === "string") out[f] = body[f].slice(0, 5000);
   if (out.status && !STATUSES.includes(out.status)) delete out.status;
   if ("activity" in out && !ACTIVITY.includes(out.activity)) delete out.activity;
+  if ("type" in out && !TYPES.includes(out.type)) delete out.type;
   if (Array.isArray(body.images)) out.images = body.images.filter((i) => UUID.test(i)).slice(0, MAX_IMAGES);
   return out;
 }
@@ -140,7 +142,7 @@ async function handleApi(req, parts, user) {
 
   if (!id && req.method === "POST") {
     const row = {
-      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", message: "", remarks: "", images: [],
+      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", type: "", message: "", remarks: "", images: [],
       ...clean(await req.json().catch(() => ({}))),
       id: crypto.randomUUID(),
       created_at: Date.now(),

@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, UnauthorizedError } from "./api.js";
-import { ACTIVITY_LEVELS, STATUSES, cap } from "./constants.js";
+import { ACTIVITY_LEVELS, PROFILE_TYPES, STATUSES, cap } from "./constants.js";
 import ClientRow from "./ClientRow.jsx";
 import Lightbox from "./Lightbox.jsx";
 import { SORTS, sortClients } from "./sort.js";
 
-const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "message", "remarks"];
+const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks"];
 // Values from older versions of the activity field (e.g. "< 1 month") count as not set.
 const activityOf = (c) => (ACTIVITY_LEVELS.some((l) => l.value === c.activity) ? c.activity : "");
+// Clients created before the type field existed count as not set.
+const typeOf = (c) => (PROFILE_TYPES.some((t) => t.value === c.type) ? c.type : "");
 
 // The chosen sort is remembered per browser. Storage can be unavailable (private mode), so never rely on it.
 const SORT_STORAGE_KEY = "client-tracker:sort";
@@ -27,6 +29,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("");
   const [activityFilter, setActivityFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState(loadSort);
   // Row order is fixed when the list loads or the sort changes, not on every edit,
   // so a row never jumps away while you're typing in it.
@@ -88,9 +91,10 @@ export default function App() {
       (c) =>
         (!filter || c.status === filter) &&
         (activityFilter === "all" || activityOf(c) === activityFilter) &&
+        (typeFilter === "all" || typeOf(c) === typeFilter) &&
         (!q || [c.name, c.profile, c.email, c.website, c.industry, c.message, c.remarks].join(" ").toLowerCase().includes(q))
     );
-  }, [ordered, query, filter, activityFilter]);
+  }, [ordered, query, filter, activityFilter, typeFilter]);
 
   function update(id, field, value, delay = 400) {
     clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, [field]: value } : c));
@@ -112,6 +116,7 @@ export default function App() {
       setQuery("");
       setFilter("");
       setActivityFilter("all");
+      setTypeFilter("all");
       setClients((cs) => [c, ...cs]);
       setFocusId(c.id);
       setSelectedId(c.id);
@@ -132,7 +137,7 @@ export default function App() {
 
   function exportCsv() {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [CSV_COLS.join(","), ...clients.map((c) => CSV_COLS.map((k) => esc(k === "activity" ? activityOf(c) : c[k])).join(","))].join("\n");
+    const csv = [CSV_COLS.join(","), ...clients.map((c) => CSV_COLS.map((k) => esc(k === "activity" ? activityOf(c) : k === "type" ? typeOf(c) : c[k])).join(","))].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "clients.csv";
@@ -169,6 +174,13 @@ export default function App() {
             <option key={l.value} value={l.value}>{l.label} activity</option>
           ))}
           <option value="">Activity not set</option>
+        </select>
+        <select className="control" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+          <option value="all">All types</option>
+          {PROFILE_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+          <option value="">Type not set</option>
         </select>
         <select className="control" value={sortKey} onChange={(e) => changeSort(e.target.value)} title="Sort clients">
           {SORTS.map((s) => (

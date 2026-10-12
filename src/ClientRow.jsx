@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { STATUSES, cap } from "./constants.js";
+import { PROFILE_TYPES, STATUSES, cap } from "./constants.js";
 import ActivityLevel from "./ActivityLevel.jsx";
 import Remarks from "./Remarks.jsx";
 
@@ -120,6 +120,12 @@ export default function ClientRow({ client: c, autoFocus, selected, onSelect, on
           ))}
         </select>
         <ActivityLevel value={c.activity ?? ""} onChange={set("activity")} />
+        <select className="profile-type" data-t={c.type || "unset"} value={c.type ?? ""} onChange={(e) => set("type")(e.target.value)} title="Profile type">
+          <option value="">Type: not set</option>
+          {PROFILE_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.label}</option>
+          ))}
+        </select>
       </div>
       <div className="cell message" data-label="Draft message">
         <MessageField value={c.message ?? ""} onChange={set("message")} />

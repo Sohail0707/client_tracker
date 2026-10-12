@@ -10,4 +10,10 @@ export const ACTIVITY_LEVELS = [
 
 export const ACTIVITY_REQUIREMENTS = "Must still own/run the firm · photo + firm in headline · 200+ connections";
 
+// Whether the LinkedIn profile is an agency/firm page or a person's own profile. Empty = not set.
+export const PROFILE_TYPES = [
+  { value: "agency", label: "Agency" },
+  { value: "personal", label: "Personal" },
+];
+
 export const cap = (s) => s[0].toUpperCase() + s.slice(1);
