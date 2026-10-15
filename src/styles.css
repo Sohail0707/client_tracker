@@ -121,6 +121,39 @@ select.status[data-s="client"] { background: var(--hired); color: var(--hired-t)
 .activity-badge.medium { background: var(--reply); color: var(--reply-t); box-shadow: none; }
 .activity-badge.low { background: var(--yellow); color: var(--yellow-t); box-shadow: none; }
 
+/* Next action: due-date pill + editable action */
+.next { position: relative; display: flex; align-items: center; gap: 2px; margin: 2px 0 2px 4px; }
+.next-due {
+  flex: none; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  background: var(--hover); color: var(--text);
+}
+.next.none .next-due { background: none; color: var(--muted); font-weight: 400; box-shadow: inset 0 0 0 1px var(--line); }
+.next.today .next-due { background: var(--yellow); color: var(--yellow-t); }
+.next.overdue .next-due { background: var(--danger); color: #fff; }
+.next-due:hover { filter: brightness(0.95); }
+.next-picker { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.cell input.next-action { font-size: 13px; padding-top: 2px; padding-bottom: 2px; }
+.next.none .next-action { color: var(--muted); }
+
+/* Activity log: quick-log menu + compact dated entries */
+.log { position: relative; width: 100%; }
+.log-add {
+  border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 500;
+  background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1px var(--line);
+}
+.log-add:hover { box-shadow: inset 0 0 0 1px var(--accent); filter: none; }
+.log-menu { width: 190px; }
+.log-menu .activity-option { padding: 7px 10px; }
+.log-list { list-style: none; margin: 4px 0 0; padding: 0 0 0 2px; font-size: 12px; color: var(--muted); }
+.log-list li { position: relative; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.6; padding-right: 16px; }
+.log-date { color: var(--text); font-weight: 500; }
+.log-del {
+  position: absolute; right: 0; top: 0; background: none; color: var(--muted); padding: 0 2px; font-size: 11px; opacity: 0;
+}
+.log-list li:hover .log-del, .log-del:focus { opacity: 1; }
+.log-del:hover { color: var(--danger); filter: none; }
+.log-more { background: none; color: var(--accent); padding: 0; font-size: 12px; font-weight: 400; }
+
 /* Profile type: agency / personal, outlined pill like an unset activity badge */
 select.profile-type {
   appearance: none; border: 0; border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 500;
@@ -172,6 +205,8 @@ a.button {
   border-radius: 9px; padding: 9px 16px; font-weight: 500;
 }
 a.button:hover { filter: brightness(0.95); }
+h1 small.stat { margin-left: 6px; white-space: nowrap; }
+.today-btn.due { border-color: var(--accent); color: var(--accent); }
 .signout { color: var(--muted); text-decoration: none; font-size: 13px; padding: 0 4px; }
 .signout:hover { color: var(--text); }
 .signin {

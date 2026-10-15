@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { PROFILE_TYPES, STATUSES, cap } from "./constants.js";
 import ActivityLevel from "./ActivityLevel.jsx";
 import Remarks from "./Remarks.jsx";
+import { ActivityLog, NextAction } from "./Tasks.jsx";
 
 const toHref = (v) => (/^https?:\/\//i.test(v) ? v : `https://${v}`);
 
@@ -106,13 +107,14 @@ function CopyButton({ text, onError }) {
   );
 }
 
-export default function ClientRow({ client: c, autoFocus, selected, onSelect, onChange, onAddImages, onRemoveImage, onOpenImage, onError, onArchive, onDelete }) {
+export default function ClientRow({ client: c, autoFocus, selected, onSelect, onChange, onAddImages, onRemoveImage, onOpenImage, onError, onLog, onRemoveLog, onArchive, onDelete }) {
   const set = (field) => (value) => onChange(c.id, field, value);
   return (
     <div className={`row${selected ? " selected" : ""}`} onMouseDown={() => onSelect(c.id)} onFocus={() => onSelect(c.id)}>
       <div className="cell client">
         <Field className="name" value={c.name} placeholder="Name" onChange={set("name")} autoFocus={autoFocus} />
         <Field className="industry" value={c.industry} placeholder="Industry" onChange={set("industry")} />
+        <NextAction action={c.nextAction ?? ""} due={c.nextDue ?? ""} onAction={set("nextAction")} onDue={(v) => onChange(c.id, "nextDue", v, 0)} />
       </div>
       <div className="cell contact">
         <ContactField icon="linkedin" value={c.profile} placeholder="LinkedIn profile" onChange={set("profile")} link />
@@ -132,6 +134,7 @@ export default function ClientRow({ client: c, autoFocus, selected, onSelect, on
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
+        <ActivityLog log={c.log} onLog={(type) => onLog(c.id, type)} onRemove={(i) => onRemoveLog(c.id, i)} />
       </div>
       <div className="cell message" data-label="Draft message">
         <MessageField value={c.message ?? ""} onChange={set("message")} />
