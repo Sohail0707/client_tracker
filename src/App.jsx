@@ -5,7 +5,7 @@ import ClientRow from "./ClientRow.jsx";
 import Lightbox from "./Lightbox.jsx";
 import { SORTS, sortClients } from "./sort.js";
 
-const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks"];
+const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks", "archived"];
 // Values from older versions of the activity field (e.g. "< 1 month") count as not set.
 const activityOf = (c) => (ACTIVITY_LEVELS.some((l) => l.value === c.activity) ? c.activity : "");
 // Clients created before the type field existed count as not set.
@@ -31,6 +31,8 @@ export default function App() {
   const [activityFilter, setActivityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState(loadSort);
+  // Archived clients are hidden from the main list and shown only in the Archive view.
+  const [showArchive, setShowArchive] = useState(false);
   // Row order is fixed when the list loads or the sort changes, not on every edit,
   // so a row never jumps away while you're typing in it.
   const [order, setOrder] = useState([]);
@@ -89,12 +91,17 @@ export default function App() {
     const q = query.toLowerCase();
     return ordered.filter(
       (c) =>
+        !!c.archived === showArchive &&
         (!filter || c.status === filter) &&
         (activityFilter === "all" || activityOf(c) === activityFilter) &&
         (typeFilter === "all" || typeOf(c) === typeFilter) &&
         (!q || [c.name, c.profile, c.email, c.website, c.industry, c.message, c.remarks].join(" ").toLowerCase().includes(q))
     );
-  }, [ordered, query, filter, activityFilter, typeFilter]);
+  }, [ordered, query, filter, activityFilter, typeFilter, showArchive]);
+
+  const archivedCount = useMemo(() => clients.filter((c) => c.archived).length, [clients]);
+  const inView = clients.length - archivedCount;
+  const viewCount = showArchive ? archivedCount : inView;
 
   function update(id, field, value, delay = 400) {
     clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, [field]: value } : c));
@@ -117,6 +124,7 @@ export default function App() {
       setFilter("");
       setActivityFilter("all");
       setTypeFilter("all");
+      setShowArchive(false);
       setClients((cs) => [c, ...cs]);
       setFocusId(c.id);
       setSelectedId(c.id);
@@ -124,6 +132,8 @@ export default function App() {
       fail(e);
     }
   }
+
+  const toggleArchive = (id) => update(id, "archived", !clientsRef.current.find((c) => c.id === id)?.archived, 0);
 
   async function remove(id) {
     if (!confirm("Delete this client?")) return;
@@ -159,7 +169,7 @@ export default function App() {
     <main>
       <header>
         <h1>
-          Clients<small>{visible.length} of {clients.length}</small>
+          {showArchive ? "Archive" : "Clients"}<small>{visible.length} of {viewCount}</small>
         </h1>
         <input className="control search" type="search" placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} />
         <select className="control" value={filter} onChange={(e) => setFilter(e.target.value)}>
@@ -188,7 +198,10 @@ export default function App() {
           ))}
         </select>
         <button className="ghost" onClick={exportCsv}>Export CSV</button>
-        <button onClick={add}>+ Add client</button>
+        <button className="ghost" onClick={() => setShowArchive((v) => !v)}>
+          {showArchive ? "← Back to clients" : `Archive (${archivedCount})`}
+        </button>
+        {!showArchive && <button onClick={add}>+ Add client</button>}
         {user && (
           <a className="signout" href="/auth/logout" title={`Signed in as ${user}`}>Sign out</a>
         )}
@@ -212,11 +225,14 @@ export default function App() {
             onRemoveImage={removeImage}
             onOpenImage={(images, index) => setLightbox({ images, index })}
             onError={fail}
+            onArchive={toggleArchive}
             onDelete={remove}
           />
         ))}
         {!loading && visible.length === 0 && (
-          <div className="empty">{clients.length ? "No clients match." : "No clients yet. Click “Add client”."}</div>
+          <div className="empty">{showArchive
+            ? archivedCount ? "No archived clients match." : "Archive is empty. Use the archive button on a client to move it here."
+            : inView ? "No clients match." : "No clients yet. Click “Add client”."}</div>
         )}
       </div>
 

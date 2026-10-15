@@ -120,6 +120,7 @@ function clean(body = {}) {
   if (out.status && !STATUSES.includes(out.status)) delete out.status;
   if ("activity" in out && !ACTIVITY.includes(out.activity)) delete out.activity;
   if ("type" in out && !TYPES.includes(out.type)) delete out.type;
+  if (typeof body.archived === "boolean") out.archived = body.archived;
   if (Array.isArray(body.images)) out.images = body.images.filter((i) => UUID.test(i)).slice(0, MAX_IMAGES);
   return out;
 }
@@ -142,7 +143,7 @@ async function handleApi(req, parts, user) {
 
   if (!id && req.method === "POST") {
     const row = {
-      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", type: "", message: "", remarks: "", images: [],
+      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", type: "", message: "", remarks: "", images: [], archived: false,
       ...clean(await req.json().catch(() => ({}))),
       id: crypto.randomUUID(),
       created_at: Date.now(),

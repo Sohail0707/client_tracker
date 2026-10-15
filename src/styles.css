@@ -157,6 +157,13 @@ select.profile-type:hover { filter: brightness(0.96); }
 .del { position: absolute; top: 9px; right: 8px; background: none; color: var(--muted); padding: 4px 8px; font-size: 16px; opacity: 0; }
 .row:hover .del, .del:focus { opacity: 1; }
 .del:hover { color: var(--danger); filter: none; }
+.arch {
+  position: absolute; top: 40px; right: 8px; background: none; color: var(--muted); padding: 4px 8px;
+  font-size: 15px; line-height: 1; opacity: 0;
+}
+.arch svg { width: 15px; height: 15px; display: block; }
+.row:hover .arch, .arch:focus { opacity: 1; }
+.arch:hover { color: var(--accent); filter: none; }
 
 .empty { padding: 48px; text-align: center; color: var(--muted); }
 
@@ -229,6 +236,7 @@ a.button:hover { filter: brightness(0.95); }
   .cell[data-label]::before { display: block; }
   .client input.name { font-size: 16px; }
   .del { opacity: 1; top: 14px; }
+  .arch { opacity: 1; top: 46px; }
 }
 
 /* Portrait tablets: stack contact fields, give search its own line. */

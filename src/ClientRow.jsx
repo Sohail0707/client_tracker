@@ -17,6 +17,12 @@ const icons = {
       <path d="M2 4.5l6 4.5 6-4.5" />
     </svg>
   ),
+  archive: (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="3" rx="0.8" />
+      <path d="M2.5 5.5v7a1 1 0 001 1h9a1 1 0 001-1v-7M6.5 8.5h3" />
+    </svg>
+  ),
   website: (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
       <circle cx="8" cy="8" r="6.5" />
@@ -100,7 +106,7 @@ function CopyButton({ text, onError }) {
   );
 }
 
-export default function ClientRow({ client: c, autoFocus, selected, onSelect, onChange, onAddImages, onRemoveImage, onOpenImage, onError, onDelete }) {
+export default function ClientRow({ client: c, autoFocus, selected, onSelect, onChange, onAddImages, onRemoveImage, onOpenImage, onError, onArchive, onDelete }) {
   const set = (field) => (value) => onChange(c.id, field, value);
   return (
     <div className={`row${selected ? " selected" : ""}`} onMouseDown={() => onSelect(c.id)} onFocus={() => onSelect(c.id)}>
@@ -143,6 +149,9 @@ export default function ClientRow({ client: c, autoFocus, selected, onSelect, on
         />
       </div>
       <button className="del" title="Delete client" onClick={() => onDelete(c.id)}>✕</button>
+      <button className="arch" title={c.archived ? "Move back to clients" : "Move to archive"} onClick={() => onArchive(c.id)}>
+        {c.archived ? "↩" : icons.archive}
+      </button>
     </div>
   );
 }
