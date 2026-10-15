@@ -3,16 +3,15 @@ import crypto from "node:crypto";
 
 export const config = { path: ["/api/*", "/auth/*"] };
 
-const STATUSES = ["fresh", "invited", "connected", "messaged", "replied", "call", "client"];
+const STATUSES = ["fresh", "invited", "invited_note", "connected", "messaged", "replied", "call", "client"];
 // Statuses from the first version of the pipeline, mapped onto the current one.
 const LEGACY_STATUS = { "message sent": "messaged", "got reply": "replied", hired: "client" };
 const withStatus = (row) => (LEGACY_STATUS[row.status] ? { ...row, status: LEGACY_STATUS[row.status] } : row);
-const FIELDS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks", "nextAction", "nextDue"];
+const FIELDS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "message", "remarks", "noteInvitedAt"];
 const ACTIVITY = ["", "high", "medium", "low"];
 const TYPES = ["", "agency", "personal"];
-const LOG_TYPES = ["commented", "invited", "invited_note", "accepted", "messaged", "replied"];
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const MAX_LOG = 500;
+const MAX_TASKS = 50;
 const SESSION_COOKIE = "ct_session";
 const STATE_COOKIE = "ct_oauth_state";
 const SESSION_DAYS = 365;
@@ -123,13 +122,12 @@ function clean(body = {}) {
   if (out.status && !STATUSES.includes(out.status)) delete out.status;
   if ("activity" in out && !ACTIVITY.includes(out.activity)) delete out.activity;
   if ("type" in out && !TYPES.includes(out.type)) delete out.type;
-  if ("nextAction" in out) out.nextAction = out.nextAction.slice(0, 300);
-  if ("nextDue" in out && out.nextDue && !DAY.test(out.nextDue)) delete out.nextDue;
-  if (Array.isArray(body.log)) {
-    out.log = body.log
-      .filter((e) => e && DAY.test(e.date) && LOG_TYPES.includes(e.type))
-      .map((e) => ({ date: e.date, type: e.type, note: typeof e.note === "string" ? e.note.slice(0, 500) : "" }))
-      .slice(-MAX_LOG);
+  if ("noteInvitedAt" in out && out.noteInvitedAt && !DAY.test(out.noteInvitedAt)) delete out.noteInvitedAt;
+  if (Array.isArray(body.tasks)) {
+    out.tasks = body.tasks
+      .filter((t) => t && typeof t.id === "string" && typeof t.text === "string")
+      .map((t) => ({ id: t.id.slice(0, 40), text: t.text.slice(0, 1000), due: DAY.test(t.due) ? t.due : "" }))
+      .slice(0, MAX_TASKS);
   }
   if (typeof body.archived === "boolean") out.archived = body.archived;
   if (Array.isArray(body.images)) out.images = body.images.filter((i) => UUID.test(i)).slice(0, MAX_IMAGES);
@@ -154,7 +152,7 @@ async function handleApi(req, parts, user) {
 
   if (!id && req.method === "POST") {
     const row = {
-      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", type: "", message: "", remarks: "", images: [], archived: false, nextAction: "", nextDue: "", log: [],
+      name: "", profile: "", email: "", website: "", industry: "", status: "fresh", activity: "", type: "", message: "", remarks: "", images: [], archived: false, tasks: [], noteInvitedAt: "",
       ...clean(await req.json().catch(() => ({}))),
       id: crypto.randomUUID(),
       created_at: Date.now(),

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, UnauthorizedError } from "./api.js";
-import { ACTIVITY_LEVELS, PROFILE_TYPES, STATUSES, cap } from "./constants.js";
+import { ACTIVITY_LEVELS, PROFILE_TYPES, STATUSES, statusLabel } from "./constants.js";
 import ClientRow from "./ClientRow.jsx";
 import Lightbox from "./Lightbox.jsx";
 import { SORTS, sortClients } from "./sort.js";
-import { isDue, logAction, logText, today } from "./tasks.js";
+import { firstDue, isDue, noteInvitesThisMonth, tasksOf, tasksText, today } from "./tasks.js";
 
-const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "nextAction", "nextDue", "log", "message", "remarks", "archived"];
+const CSV_COLS = ["name", "profile", "email", "website", "industry", "status", "activity", "type", "tasks", "message", "remarks", "archived"];
 // Values from older versions of the activity field (e.g. "< 1 month") count as not set.
 const activityOf = (c) => (ACTIVITY_LEVELS.some((l) => l.value === c.activity) ? c.activity : "");
 // Clients created before the type field existed count as not set.
@@ -33,7 +33,7 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sortKey, setSortKey] = useState(loadSort);
   // "clients" | "today" | "archive". Archived clients show only in the Archive view;
-  // Today shows active clients whose next action is due today or overdue.
+  // Today shows active clients with a task due today or overdue.
   const [view, setView] = useState("clients");
   const showArchive = view === "archive";
   // Row order is fixed when the list loads or the sort changes, not on every edit,
@@ -99,20 +99,15 @@ export default function App() {
         (!filter || c.status === filter) &&
         (activityFilter === "all" || activityOf(c) === activityFilter) &&
         (typeFilter === "all" || typeOf(c) === typeFilter) &&
-        (!q || [c.name, c.profile, c.email, c.website, c.industry, c.nextAction, c.message, c.remarks].join(" ").toLowerCase().includes(q))
+        (!q || [c.name, c.profile, c.email, c.website, c.industry, ...tasksOf(c).map((t) => t.text), c.message, c.remarks].join(" ").toLowerCase().includes(q))
     );
     // Today: most overdue first. The sort is stable, so same-day rows keep the chosen order.
-    return view === "today" ? rows.sort((a, b) => a.nextDue.localeCompare(b.nextDue)) : rows;
+    return view === "today" ? rows.sort((a, b) => firstDue(a).localeCompare(firstDue(b))) : rows;
   }, [ordered, query, filter, activityFilter, typeFilter, view]);
 
   const archivedCount = useMemo(() => clients.filter((c) => c.archived).length, [clients]);
   const dueCount = useMemo(() => clients.filter(isDue).length, [clients]);
-  // Custom-note invites logged this calendar month, archived clients included.
-  const month = today().slice(0, 7);
-  const noteInvites = useMemo(
-    () => clients.reduce((n, c) => n + (c.log || []).filter((e) => e.type === "invited_note" && e.date.startsWith(month)).length, 0),
-    [clients, month]
-  );
+  const noteInvites = useMemo(() => noteInvitesThisMonth(clients), [clients]);
   const inView = clients.length - archivedCount;
   const viewCount = showArchive ? archivedCount : view === "today" ? dueCount : inView;
 
@@ -134,9 +129,11 @@ export default function App() {
     api.update(id, fields).catch((e) => fail(e, "Save failed: "));
   }
 
-  const clientOf = (id) => clientsRef.current.find((c) => c.id === id);
-  const logOn = (id, type) => patch(id, logAction(clientOf(id), type));
-  const removeLog = (id, index) => patch(id, { log: (clientOf(id).log || []).filter((_, i) => i !== index) });
+  // "Invited with note" stamps the day it was first set, for the monthly note-invite count.
+  const setStatus = (id, status) => {
+    const c = clientsRef.current.find((x) => x.id === id);
+    patch(id, status === "invited_note" && !c.noteInvitedAt ? { status, noteInvitedAt: today() } : { status });
+  };
 
   const imagesOf = (id) => clientsRef.current.find((c) => c.id === id)?.images || [];
   const addImages = (id, ids) => update(id, "images", [...imagesOf(id), ...ids], 0);
@@ -172,7 +169,7 @@ export default function App() {
 
   function exportCsv() {
     const esc = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const csv = [CSV_COLS.join(","), ...clients.map((c) => CSV_COLS.map((k) => esc(k === "activity" ? activityOf(c) : k === "type" ? typeOf(c) : k === "log" ? logText(c.log) : c[k])).join(","))].join("\n");
+    const csv = [CSV_COLS.join(","), ...clients.map((c) => CSV_COLS.map((k) => esc(k === "activity" ? activityOf(c) : k === "type" ? typeOf(c) : k === "tasks" ? tasksText(c) : c[k])).join(","))].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     a.download = "clients.csv";
@@ -195,13 +192,13 @@ export default function App() {
       <header>
         <h1>
           {showArchive ? "Archive" : view === "today" ? "Today" : "Clients"}<small>{visible.length} of {viewCount}</small>
-          <small className="stat" title="Invites with a custom note logged this calendar month">· {noteInvites} note {noteInvites === 1 ? "invite" : "invites"} this month</small>
+          <small className="stat" title="Clients set to “Invited with note” this calendar month">· {noteInvites} note {noteInvites === 1 ? "invite" : "invites"} this month</small>
         </h1>
         <input className="control search" type="search" placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} />
         <select className="control" value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="">All statuses</option>
           {STATUSES.map((s) => (
-            <option key={s} value={s}>{cap(s)}</option>
+            <option key={s} value={s}>{statusLabel(s)}</option>
           ))}
         </select>
         <select className="control" value={activityFilter} onChange={(e) => setActivityFilter(e.target.value)}>
@@ -256,8 +253,7 @@ export default function App() {
             onRemoveImage={removeImage}
             onOpenImage={(images, index) => setLightbox({ images, index })}
             onError={fail}
-            onLog={logOn}
-            onRemoveLog={removeLog}
+            onStatus={setStatus}
             onArchive={toggleArchive}
             onDelete={remove}
           />

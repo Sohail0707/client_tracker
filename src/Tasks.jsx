@@ -1,25 +1,25 @@
-import { useEffect, useRef, useState } from "react";
-import { LOG_TYPES, logLabel, logNewestFirst, shortDate, today } from "./tasks.js";
+import { useEffect, useLayoutEffect, useRef } from "react";
+import { newTask, shortDate, today } from "./tasks.js";
 
-// Closes a popover on an outside click or Escape.
-function useDismiss(open, setOpen, ref) {
+// Wraps and grows with its content, so the whole task is always visible.
+function TaskText({ value, onChange, autoFocus }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const t = ref.current;
+    t.style.height = "auto";
+    t.style.height = `${t.scrollHeight}px`;
+  }, [value]);
   useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => !ref.current.contains(e.target) && setOpen(false);
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+    if (autoFocus) ref.current.focus();
+  }, []);
+  return <textarea ref={ref} rows={1} className="task-text" value={value} placeholder="Task…" onChange={(e) => onChange(e.target.value)} />;
 }
 
-// Due-date pill plus the next action. The pill opens the browser's date picker,
-// whose own Clear button removes the date.
-export function NextAction({ action, due, onAction, onDue }) {
+// Due-date pill, the task, and a done button that removes it. The pill opens the browser's
+// date picker, whose own Clear button removes the date.
+function Task({ task, autoFocus, onText, onDue, onDone }) {
   const picker = useRef(null);
+  const { due } = task;
   const now = today();
   const state = !due ? "none" : due < now ? "overdue" : due === now ? "today" : "later";
   const label = !due ? "+ date" : state === "today" ? "Today" : shortDate(due);
@@ -31,55 +31,39 @@ export function NextAction({ action, due, onAction, onDue }) {
     }
   };
   return (
-    <div className={`next ${state}`}>
-      <button className="next-due" title={due ? `Due ${due}${state === "overdue" ? " (overdue)" : ""}` : "Set a due date"} onClick={open}>
+    <div className={`task ${state}`}>
+      <button className="task-due" title={due ? `Due ${due}${state === "overdue" ? " (overdue)" : ""}` : "Set a due date"} onClick={open}>
         {label}
       </button>
-      <input ref={picker} className="next-picker" type="date" tabIndex={-1} value={due} onChange={(e) => onDue(e.target.value)} />
-      <input className="next-action" value={action} title={action} placeholder="Next action…" onChange={(e) => onAction(e.target.value)} />
+      <input ref={picker} className="task-picker" type="date" tabIndex={-1} value={due} onChange={(e) => onDue(e.target.value)} />
+      <TaskText value={task.text} onChange={onText} autoFocus={autoFocus} />
+      <button className="task-done" title="Done (removes the task)" onClick={onDone}>✓</button>
     </div>
   );
 }
 
-const SHOWN = 3;
-
-// Quick-log menu and the dated activity log, newest first.
-export function ActivityLog({ log = [], onLog, onRemove }) {
-  const [open, setOpen] = useState(false);
-  const [all, setAll] = useState(false);
-  const ref = useRef(null);
-  useDismiss(open, setOpen, ref);
-  const entries = logNewestFirst(log);
-  const shown = all ? entries : entries.slice(0, SHOWN);
-
+// The client's task list. `onChange(tasks, immediate)` saves the whole list; typing is debounced.
+export default function Tasks({ tasks, onChange }) {
+  const added = useRef(null);
+  const edit = (id, fields, immediate) => onChange(tasks.map((t) => (t.id === id ? { ...t, ...fields } : t)), immediate);
+  const add = () => {
+    const t = newTask();
+    added.current = t.id;
+    onChange([...tasks, t], true);
+  };
   return (
-    <div className="log" ref={ref}>
-      <button className="log-add" onClick={() => setOpen((o) => !o)} title="Log an action">+ Log</button>
-      {open && (
-        <div className="activity-menu log-menu" role="menu">
-          {LOG_TYPES.map((t) => (
-            <button key={t.value} role="menuitem" className="activity-option" onClick={() => (onLog(t.value), setOpen(false))}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-      )}
-      {shown.length > 0 && (
-        <ul className="log-list">
-          {shown.map((e) => (
-            <li key={e.i} title={e.note || undefined}>
-              <span className="log-date">{shortDate(e.date)}</span> {logLabel(e.type)}
-              {e.note && <span className="log-note"> · {e.note}</span>}
-              <button className="log-del" title="Remove entry" onClick={() => onRemove(e.i)}>✕</button>
-            </li>
-          ))}
-          {entries.length > SHOWN && (
-            <li>
-              <button className="log-more" onClick={() => setAll((a) => !a)}>{all ? "Show less" : `+${entries.length - SHOWN} more`}</button>
-            </li>
-          )}
-        </ul>
-      )}
+    <div className="tasks">
+      {tasks.map((t) => (
+        <Task
+          key={t.id}
+          task={t}
+          autoFocus={t.id === added.current}
+          onText={(text) => edit(t.id, { text })}
+          onDue={(due) => edit(t.id, { due }, true)}
+          onDone={() => onChange(tasks.filter((x) => x.id !== t.id), true)}
+        />
+      ))}
+      <button className="task-add" onClick={add}>+ Task</button>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 // Outreach pipeline, in order.
-export const STATUSES = ["fresh", "invited", "connected", "messaged", "replied", "call", "client"];
+export const STATUSES = ["fresh", "invited", "invited_note", "connected", "messaged", "replied", "call", "client"];
 
 // LinkedIn activity tiers, set by eye from the client's Activity tab. ACTIVITY_REQUIREMENTS applies to every tier.
 export const ACTIVITY_LEVELS = [
@@ -17,3 +17,6 @@ export const PROFILE_TYPES = [
 ];
 
 export const cap = (s) => s[0].toUpperCase() + s.slice(1);
+
+const STATUS_LABELS = { invited_note: "Invited with note" };
+export const statusLabel = (s) => STATUS_LABELS[s] || cap(s);
