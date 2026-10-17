@@ -187,6 +187,14 @@ select.profile-type:hover { filter: brightness(0.96); }
 .row:hover .arch, .arch:focus { opacity: 1; }
 .arch:hover { color: var(--accent); filter: none; }
 
+/* Day groups (Group: Date added / Last edited) */
+.group-head {
+  padding: 9px 17px; font-size: 13px; font-weight: 600; background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.group + .group .group-head { border-top: 1px solid var(--line); }
+.group-head small { margin-left: 8px; color: var(--muted); font-weight: 400; }
+
 .empty { padding: 48px; text-align: center; color: var(--muted); }
 
 a.button {
@@ -240,6 +248,8 @@ h1 small.stat { margin-left: 6px; white-space: nowrap; }
   .search { flex: 1 1 180px; }
   .list { background: none; border: 0; display: flex; flex-direction: column; gap: 12px; }
   .list-head { display: none; }
+  .group { display: flex; flex-direction: column; gap: 12px; }
+  .group-head, .group + .group .group-head { background: none; border: 0; padding: 8px 4px 0; }
   .row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); row-gap: 8px; column-gap: 16px;
     grid-template-areas: "client status" "contact contact" "message remarks";

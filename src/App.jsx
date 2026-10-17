@@ -3,6 +3,7 @@ import { api, UnauthorizedError } from "./api.js";
 import { ACTIVITY_LEVELS, PROFILE_TYPES, STATUSES, statusLabel } from "./constants.js";
 import ClientRow from "./ClientRow.jsx";
 import Lightbox from "./Lightbox.jsx";
+import { GROUPS, dayLabel, groupRows } from "./group.js";
 import { SORTS, sortClients } from "./sort.js";
 import { firstDue, isDue, noteInvitesThisMonth, tasksOf, tasksText, today } from "./tasks.js";
 
@@ -12,15 +13,21 @@ const activityOf = (c) => (ACTIVITY_LEVELS.some((l) => l.value === c.activity) ?
 // Clients created before the type field existed count as not set.
 const typeOf = (c) => (PROFILE_TYPES.some((t) => t.value === c.type) ? c.type : "");
 
-// The chosen sort is remembered per browser. Storage can be unavailable (private mode), so never rely on it.
+// The chosen sort and grouping are remembered per browser. Storage can be unavailable (private mode), so never rely on it.
 const SORT_STORAGE_KEY = "client-tracker:sort";
-const loadSort = () => {
+const GROUP_STORAGE_KEY = "client-tracker:group";
+const load = (key, options, fallback) => () => {
   try {
-    const v = localStorage.getItem(SORT_STORAGE_KEY);
-    return SORTS.some((s) => s.value === v) ? v : "newest";
+    const v = localStorage.getItem(key);
+    return options.some((o) => o.value === v) ? v : fallback;
   } catch {
-    return "newest";
+    return fallback;
   }
+};
+const save = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
 };
 
 export default function App() {
@@ -31,7 +38,8 @@ export default function App() {
   const [filter, setFilter] = useState("");
   const [activityFilter, setActivityFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
-  const [sortKey, setSortKey] = useState(loadSort);
+  const [sortKey, setSortKey] = useState(load(SORT_STORAGE_KEY, SORTS, "newest"));
+  const [groupKey, setGroupKey] = useState(load(GROUP_STORAGE_KEY, GROUPS, "none"));
   // "clients" | "today" | "archive". Archived clients show only in the Archive view;
   // Today shows active clients with a task due today or overdue.
   const [view, setView] = useState("clients");
@@ -39,6 +47,8 @@ export default function App() {
   // Row order is fixed when the list loads or the sort changes, not on every edit,
   // so a row never jumps away while you're typing in it.
   const [order, setOrder] = useState([]);
+  // Last-edited times as of the same moment, so "Last edited" groups don't shift while editing either.
+  const [stamps, setStamps] = useState(new Map());
   const [focusId, setFocusId] = useState(null);
   // The last row interacted with stays highlighted, so it's easy to find after visiting a link.
   const [selectedId, setSelectedId] = useState(null);
@@ -58,7 +68,7 @@ export default function App() {
       .then(([me, list]) => {
         setUser(me.login);
         setClients(list);
-        setOrder(sortClients(list, sortKey).map((c) => c.id));
+        resort(list, sortKey);
       })
       .catch(fail)
       .finally(() => setLoading(false));
@@ -75,12 +85,21 @@ export default function App() {
     };
   }, []);
 
+  function resort(list, key) {
+    setOrder(sortClients(list, key).map((c) => c.id));
+    setStamps(new Map(list.map((c) => [c.id, c.updated_at || c.created_at])));
+  }
+
   function changeSort(value) {
     setSortKey(value);
-    setOrder(sortClients(clientsRef.current, value).map((c) => c.id));
-    try {
-      localStorage.setItem(SORT_STORAGE_KEY, value);
-    } catch {}
+    resort(clientsRef.current, value);
+    save(SORT_STORAGE_KEY, value);
+  }
+
+  function changeGroup(value) {
+    setGroupKey(value);
+    resort(clientsRef.current, sortKey);
+    save(GROUP_STORAGE_KEY, value);
   }
 
   // Clients added since the last sort appear on top until the next sort.
@@ -112,7 +131,7 @@ export default function App() {
   const viewCount = showArchive ? archivedCount : view === "today" ? dueCount : inView;
 
   function update(id, field, value, delay = 400) {
-    clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, [field]: value } : c));
+    clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, [field]: value, updated_at: Date.now() } : c));
     setClients(clientsRef.current);
     const key = id + field;
     clearTimeout(timers.current[key]);
@@ -123,7 +142,7 @@ export default function App() {
 
   // Saves several fields at once, replacing any pending debounced save of the same fields.
   function patch(id, fields) {
-    clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, ...fields } : c));
+    clientsRef.current = clientsRef.current.map((c) => (c.id === id ? { ...c, ...fields, updated_at: Date.now() } : c));
     setClients(clientsRef.current);
     Object.keys(fields).forEach((f) => clearTimeout(timers.current[id + f]));
     api.update(id, fields).catch((e) => fail(e, "Save failed: "));
@@ -177,6 +196,24 @@ export default function App() {
     URL.revokeObjectURL(a.href);
   }
 
+  const renderRow = (c) => (
+    <ClientRow
+      key={c.id}
+      client={c}
+      autoFocus={c.id === focusId}
+      selected={c.id === selectedId}
+      onSelect={setSelectedId}
+      onChange={update}
+      onAddImages={addImages}
+      onRemoveImage={removeImage}
+      onOpenImage={(images, index) => setLightbox({ images, index })}
+      onError={fail}
+      onStatus={setStatus}
+      onArchive={toggleArchive}
+      onDelete={remove}
+    />
+  );
+
   if (signedOut) {
     return (
       <div className="signin">
@@ -220,6 +257,11 @@ export default function App() {
             <option key={s.value} value={s.value}>Sort: {s.label}</option>
           ))}
         </select>
+        <select className="control" value={groupKey} onChange={(e) => changeGroup(e.target.value)} title="Group clients by day">
+          {GROUPS.map((g) => (
+            <option key={g.value} value={g.value}>Group: {g.label}</option>
+          ))}
+        </select>
         <button className="ghost" onClick={exportCsv}>Export CSV</button>
         {view === "clients" ? (
           <>
@@ -241,23 +283,16 @@ export default function App() {
         <div className="list-head">
           <div>Client</div><div>Contact</div><div>Status</div><div>Draft message</div><div>Remarks</div>
         </div>
-        {visible.map((c) => (
-          <ClientRow
-            key={c.id}
-            client={c}
-            autoFocus={c.id === focusId}
-            selected={c.id === selectedId}
-            onSelect={setSelectedId}
-            onChange={update}
-            onAddImages={addImages}
-            onRemoveImage={removeImage}
-            onOpenImage={(images, index) => setLightbox({ images, index })}
-            onError={fail}
-            onStatus={setStatus}
-            onArchive={toggleArchive}
-            onDelete={remove}
-          />
-        ))}
+        {groupKey === "none"
+          ? visible.map(renderRow)
+          : groupRows(visible, groupKey, stamps).map((g) => (
+              <section key={g.day} className="group">
+                <div className="group-head">
+                  {dayLabel(g.day)}<small>{g.rows.length}</small>
+                </div>
+                {g.rows.map(renderRow)}
+              </section>
+            ))}
         {!loading && visible.length === 0 && (
           <div className="empty">{showArchive
             ? archivedCount ? "No archived clients match." : "Archive is empty. Use the archive button on a client to move it here."

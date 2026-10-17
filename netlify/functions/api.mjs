@@ -164,7 +164,7 @@ async function handleApi(req, parts, user) {
   if (id && req.method === "PATCH") {
     const current = await store.get(id, { type: "json" });
     if (!current) return json({ error: "Not found" }, 404);
-    const next = { ...withStatus(current), ...clean(await req.json().catch(() => ({}))) };
+    const next = { ...withStatus(current), ...clean(await req.json().catch(() => ({}))), updated_at: Date.now() };
     await store.setJSON(id, next);
     const removed = (current.images || []).filter((i) => !(next.images || []).includes(i));
     await Promise.all(removed.map((i) => images.delete(i)));
